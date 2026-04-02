@@ -149,18 +149,20 @@ function VoiceRecorder({ onSaved, minSeconds = 0, maxSeconds = 90 }) {
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const preferredType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/mp4')
-          ? 'audio/mp4'
-          : '';
+      let preferredType = '';
+
+if (MediaRecorder.isTypeSupported('audio/mp4')) {
+  preferredType = 'audio/mp4'; // 优先 iPhone
+} else if (MediaRecorder.isTypeSupported('audio/webm')) {
+  preferredType = 'audio/webm'; // 备用
+}
       const recorder = preferredType ? new MediaRecorder(stream, { mimeType: preferredType }) : new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/mp4' });
         const url = URL.createObjectURL(blob);
         setAudioBlob(blob);
         setAudioUrl(url);
@@ -743,9 +745,7 @@ export default function App() {
       <header className="hero">
         <div className="hero-badge">手机浏览器版</div>
         <h1>语音访谈编辑器</h1>
-        <p>
-          这是基于你原始 React 版本改出来的手机网页版本，保留了编辑问卷、录音答题、查看结果三块核心能力，原始文件本身也确实包含这三种模式。 
-        </p>
+       
         {window.location.search.includes('admin') && (
     <div className="mode-tabs">
           <button className={`tab ${mode === 'builder' ? 'tab-active' : ''}`} onClick={() => setMode('builder')}>编辑器</button>
