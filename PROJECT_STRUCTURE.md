@@ -6,8 +6,7 @@
 |---|---|
 | **项目名称** | voice-interview-mobile-browser |
 | **项目类型** | 移动端 Web 原型（单页应用） |
-| **技术栈** | React 18 + Vite + Motion + Supabase |
-| **动画库** | Motion (Framer Motion v12) |
+| **技术栈** | React 18 + Vite + Supabase |
 | **目标平台** | 移动浏览器（Android/iOS Safari） |
 | **核心功能** | 语音录制访谈问卷：管理员设计问卷 → 参与者语音答题 → 结果收集展示 |
 
@@ -38,7 +37,6 @@
 | `react` | ^18.3.1 | UI 框架 |
 | `react-dom` | ^18.3.1 | React DOM 渲染 |
 | `@supabase/supabase-js` | ^2.101.1 | 云端数据库 & 实时存储 |
-| `motion` | ^12.38.0 | 动画库（Apple 风格微动效） |
 | `vite` | ^8.0.0 | 构建工具（开发服务器 + 生产打包） |
 
 > **注意**：Vite 内置 JSX 转换，无需额外安装 `@vitejs/plugin-react`。
@@ -49,24 +47,22 @@
 
 ```
 voice-interview-site/
-├── index.html              # HTML 入口（含移动端视口 & iOS 安全区域 & SVG 图标）
+├── index.html              # HTML 入口（含移动端视口 & iOS 安全区域）
 ├── package.json            # 项目配置 & 依赖声明
 ├── package-lock.json       # 依赖版本锁定（自动生成）
 └── src/
     ├── main.jsx            # React 应用启动入口
-    ├── App.jsx             # 核心业务逻辑 + UI 组件
-    ├── AnimatedSection.jsx # Motion 动画组件库
+    ├── App.jsx             # 核心业务逻辑（全部组件，773行）
     ├── supabase.js         # Supabase 客户端初始化
-    └── styles.css          # 全局样式（Apple 风格设计系统）
+    └── styles.css          # 全局样式（CSS Variables + 移动端适配）
 ```
 
 ### 文件规模一览
 
 | 文件 | 行数 | 说明 |
 |---|---|---|
-| `src/App.jsx` | ~950 行 | 核心组件 + UI 组件 |
-| `src/styles.css` | ~450 行 | Apple 风格设计系统 |
-| `src/AnimatedSection.jsx` | ~120 行 | Motion 动画组件库 |
+| `src/App.jsx` | 773 行 | 核心组件全部在此文件 |
+| `src/styles.css` | ~157 行 | 全局样式 |
 | `src/supabase.js` | ~5 行 | 仅初始化客户端 |
 | `src/main.jsx` | ~7 行 | 仅启动应用 |
 
@@ -227,41 +223,17 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 
 ## 六、样式系统
 
-### 6.1 Apple 风格设计变量（CSS Variables）
+### 6.1 设计变量（CSS Variables）
 
 ```css
-/* 色彩系统 - 克制优雅 */
---bg: #ffffff;           /* 页面背景：纯白 */
---surface: #fafafa;       /* 卡片内背景 */
---card: #ffffff;          /* 卡片背景 */
---text: #000000;          /* 主文字：纯黑 */
---text-secondary: #86868b; /* 次要文字 */
---text-tertiary: #a1a1a6; /* 辅助文字 */
---border: #d2d2d7;        /* 边框 */
---border-light: #e5e5ea;  /* 浅色边框 */
---primary: #0071e3;       /* Apple 蓝 */
---primary-hover: #0077ed; /* 主色悬停 */
---secondary: #f5f5f7;     /* 次级背景 */
---danger: #ff3b30;        /* 危险/录音中 */
---success: #34c759;       /* 成功状态 */
-
-/* 阴影 - 轻柔层次 */
---shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
---shadow-card: 0 2px 12px rgba(0,0,0,0.04);
---shadow-elevated: 0 4px 20px rgba(0,0,0,0.06);
-
-/* 圆角 - 适中克制 */
---radius-sm: 10px;
---radius-md: 14px;
---radius-lg: 20px;
---radius-xl: 28px;
-
-/* 间距 - 大留白 */
---space-xs: 8px;
---space-sm: 12px;
---space-md: 20px;
---space-lg: 32px;
---space-xl: 48px;
+--bg:       #f6f7fb;   /* 页面背景：淡灰蓝 */
+--card:     #ffffff;   /* 卡片背景：纯白 */
+--text:     #171717;   /* 主文字：近黑 */
+--muted:    #6b7280;   /* 次要文字：灰色 */
+--line:     #e5e7eb;   /* 边框线：浅灰 */
+--primary:  #111827;   /* 主按钮：深灰黑 */
+--danger:   #dc2626;   /* 危险/录音中：正红 */
+--shadow:   0 12px 36px rgba(0,0,0,.06);  /* 卡片阴影 */
 ```
 
 ### 6.2 跨平台字体适配
@@ -280,74 +252,13 @@ font-family: -apple-system, "SF Pro Text", "PingFang SC",
 - **触控优化**：`min-height: 46px` 按钮触控区域，`active` 态 `transform: scale(.98)`
 - **居中容器**：`max-width: 860px` 居中，避免大屏拉伸
 
-### 6.2 圆角风格
+### 6.4 圆角风格
 
 | 元素 | 圆角值 |
 |---|---|
-| 小元素 | `10px` |
-| 按钮/输入框 | `14px` |
-| 卡片 | `20-28px` |
-| 药丸标签 | `980px` |
-
-### 6.3 移动端优化
-
-- **刘海屏适配**：`padding-top: env(safe-area-inset-top)`
-- **Home Indicator 适配**：`padding-bottom: env(safe-area-inset-bottom)`
-- **触控优化**：`min-height: 46px` 按钮触控区域，Motion 按压反馈
-- **居中容器**：`max-width: 980px` 居中，避免大屏拉伸
-- **禁止缩放**：`user-scalable=no` 防止意外缩放
-
----
-
-## 六、动画系统
-
-### 6.4 Motion 动画原则
-
-项目使用 Motion (Framer Motion v12) 实现 Apple 风格的克制微动效。
-
-**动画哲学**：
-- 短：动画时长 0.2-0.5 秒
-- 轻：仅使用 opacity + translateY + scale
-- 顺：使用 Apple 风格贝塞尔曲线 `[0.25, 0.1, 0.25, 1]`
-
-### 6.5 核心动画组件
-
-| 组件 | 用途 | 主要动画 |
-|---|---|---|
-| `AnimatedSection` | 通用入场动画 | 淡入 + 上浮 24px |
-| `StaggerContainer` | 交错入场容器 | 子元素依次淡入 |
-| `FadeIn` | 简单淡入 | opacity 0→1 |
-| `ScaleIn` | 缩放入场 | scale 0.95→1 |
-| `Pressable` | 按压反馈 | scale 0.98 |
-
-### 6.6 动效示例
-
-```jsx
-// 入场上浮动画
-<motion.div
-  initial={{ opacity: 0, y: 20 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
->
-  {children}
-</motion.div>
-
-// 页面切换动画
-<AnimatePresence mode="wait">
-  <motion.div
-    key={pageId}
-    initial={{ opacity: 0, x: 30 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -30 }}
-    transition={{ duration: 0.35 }}
-  />
-</AnimatePresence>
-
-// 按钮按压反馈
-<motion.button whileTap={{ scale: 0.98 }}>
-  点击我
-</motion.button>
-```
+| 卡片 | `22px` |
+| 按钮/输入框 | `14–18px` |
+| 药丸标签 | `999px` |
 
 ---
 
@@ -381,11 +292,10 @@ npm run preview  # 本地预览构建产物
 
 ### 优点
 
-1. **Apple 风格 UI**：极简设计、大留白、克制动效，参考 Apple/OpenAI 官网
-2. **Motion 动画**：流畅的微动效体验，页面切换、卡片入场、按钮按压反馈
-3. **移动优先**：完整适配 iOS 安全区域、触控优化、PWA 图标
-4. **离线可用**：localStorage 提供本地持久化，不依赖网络
-5. **演示数据内置**：开箱即用，无需配置即可预览完整流程
+1. **代码极简**：773 行核心代码完成全部功能，无冗余依赖
+2. **移动优先**：完整适配 iOS 安全区域、触控尺寸
+3. **离线可用**：localStorage 提供本地持久化，不依赖网络
+4. **演示数据内置**：开箱即用，无需配置即可预览完整流程
 
 ### 不足
 
@@ -396,6 +306,7 @@ npm run preview  # 本地预览构建产物
 5. **无数据库迁移脚本**：Supabase 表需手动创建
 6. **无权限管理**：管理端无需密码，任何人可通过 `?admin` 进入
 7. **音频无压缩**：Base64 直接存储，空间占用大（建议后续接入 Web Audio API 压缩）
+8. **无 Webpack Bundle 分析**：构建产物体积不可知
 
 ---
 
@@ -412,52 +323,3 @@ npm run preview  # 本地预览构建产物
 | 🟡 中 | Vite 构建优化 | 代码分割、CDN 配置、构建分析 |
 | 🟢 低 | 多语言支持 | i18next 国际化 |
 | 🟢 低 | 添加进度条组件 | 展示答题进度 |
-
----
-
-## 十、更新日志
-
-### v2.0.0 (2026-04-03) - UI 大改造
-
-**视觉风格全面升级**：
-
-| 改动项 | 旧版 | 新版 |
-|---|---|---|
-| 背景色 | `#f6f7fb` 淡灰蓝 | `#ffffff` 纯白 |
-| 主色调 | `#111827` 深灰黑 | `#0071e3` Apple 蓝 |
-| 卡片圆角 | `22px` | `20-28px` |
-| 留白 | 较紧凑 | 大留白 (`32-48px`) |
-| 边框 | 明显边框 | 轻柔边框 |
-
-**动画系统**：
-
-- 引入 Motion (Framer Motion v12) 动画库
-- 新增 `AnimatedSection.jsx` 动画组件库
-- 卡片入场：淡入 + 上浮 20-24px
-- 页面切换：左右滑动淡入淡出
-- 按钮按压：scale 0.98 反馈
-- 列表项：交错入场动画
-- 开关组件：平滑状态过渡
-
-**新增功能**：
-
-- 答题进度条（step / total）
-- 录音状态脉冲动画
-- 录音预览折叠动画
-- Tab 切换平滑过渡
-- 空状态友好提示
-
-**移动端优化**：
-
-- Header 毛玻璃背景 (`backdrop-filter: blur(20px)`)
-- SVG 内联图标（无需加载外部资源）
-- 禁止页面缩放 (`user-scalable=no`)
-- Apple Touch Icon 支持
-
-### v1.0.0 - 初始版本
-
-- 基础问卷编辑功能
-- 语音录制与预览
-- Supabase 数据存储
-- 响应式布局
-

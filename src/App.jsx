@@ -1,16 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 
-import { supabase } from './supabase';
+import { supabase } from './supabase'
 
-// ============================================
-// 工具函数
-// ============================================
-
-/** 生成唯一 ID */
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-/** 默认访谈配置 */
 const defaultSurvey = {
   id: 'survey-mobile-demo',
   title: '语音访谈原型',
@@ -56,7 +49,6 @@ const defaultSurvey = {
   ],
 };
 
-/** localStorage 读取 */
 function getStored(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -66,7 +58,6 @@ function getStored(key, fallback) {
   }
 }
 
-/** 自定义 Hook：state ↔ localStorage 同步 */
 function usePersistentState(key, initialValue) {
   const [state, setState] = useState(() => getStored(key, initialValue));
   useEffect(() => {
@@ -75,7 +66,6 @@ function usePersistentState(key, initialValue) {
   return [state, setState];
 }
 
-/** 秒数格式化 M:SS */
 function formatSeconds(value) {
   const safe = Math.max(0, Number(value || 0));
   const m = Math.floor(safe / 60);
@@ -83,7 +73,6 @@ function formatSeconds(value) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-/** Blob 转 Base64 */
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -93,7 +82,6 @@ function blobToBase64(blob) {
   });
 }
 
-/** 触发 JSON 下载 */
 function downloadJson(filename, data) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -104,134 +92,27 @@ function downloadJson(filename, data) {
   URL.revokeObjectURL(url);
 }
 
-// ============================================
-// 通用 UI 组件
-// ============================================
-
-/**
- * Card - 统一卡片容器
- * 入场动画：淡入 + 上浮
- */
-export function Card({ title, subtitle, children, compact = false, className = '' }) {
+function SectionCard({ title, subtitle, children, compact = false }) {
   return (
-    <motion.section 
-      className={`card ${compact ? 'card-compact' : ''} ${className}`}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-    >
-      {(title || subtitle) && (
-        <motion.div 
-          className="card-header"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.4 }}
-        >
-          {title && <h2 className="card-title">{title}</h2>}
-          {subtitle && <p className="card-subtitle">{subtitle}</p>}
-        </motion.div>
-      )}
-      <div className="card-content">
-        {children}
+    <section className={`card ${compact ? 'card-compact' : ''}`}>
+      <div className="card-header">
+        <h3>{title}</h3>
+        {subtitle ? <p>{subtitle}</p> : null}
       </div>
-    </motion.section>
+      <div className="card-body">{children}</div>
+    </section>
   );
 }
 
-/**
- * Field - 表单字段包装
- */
-export function Field({ label, children }) {
+function Field({ label, children }) {
   return (
-    <div className="field">
-      {label && <label className="field-label">{label}</label>}
+    <label className="field">
+      <span className="field-label">{label}</span>
       {children}
-    </div>
-  );
-}
-
-/**
- * ListItem - 列表项组件
- * 入场动画：交错淡入
- */
-export function ListItem({ 
-  children, 
-  isActive = false, 
-  onClick,
-  actions = [],
-  title,
-  description,
-  className = ''
-}) {
-  return (
-    <motion.button
-      className={`list-item ${isActive ? 'list-item-active' : ''} ${className}`}
-      onClick={onClick}
-      whileTap={{ scale: 0.99 }}
-      transition={{ duration: 0.1 }}
-    >
-      <div className="list-item-content">
-        {title && <div className="list-item-title">{title}</div>}
-        {description && <div className="list-item-desc">{description}</div>}
-        {children}
-      </div>
-      {actions.length > 0 && (
-        <div className="list-item-actions">
-          {actions.map((action, i) => (
-            <span key={i} onClick={(e) => { e.stopPropagation(); action.onClick?.(); }}>
-              {action.label}
-            </span>
-          ))}
-        </div>
-      )}
-    </motion.button>
-  );
-}
-
-/**
- * Toggle - 开关组件
- * 带平滑过渡动画
- */
-export function Toggle({ checked, onChange, label }) {
-  return (
-    <label className="toggle">
-      <span>{label}</span>
-      <div className="toggle-switch">
-        <input 
-          type="checkbox" 
-          className="toggle-input" 
-          checked={checked} 
-          onChange={(e) => onChange(e.target.checked)} 
-        />
-        <motion.div 
-          className="toggle-switch"
-          animate={{ background: checked ? 'var(--success)' : 'var(--border)' }}
-          transition={{ duration: 0.2 }}
-        >
-          <motion.div
-            animate={{ x: checked ? 20 : 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            style={{
-              position: 'absolute',
-              top: 2,
-              left: 2,
-              width: 27,
-              height: 27,
-              background: 'white',
-              borderRadius: '50%',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
-            }}
-          />
-        </motion.div>
-      </div>
     </label>
   );
 }
 
-/**
- * VoiceRecorder - 核心录音组件
- * 录音状态指示 + 预览播放
- */
 function VoiceRecorder({ onSaved, minSeconds = 0, maxSeconds = 90 }) {
   const [permissionError, setPermissionError] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -270,11 +151,11 @@ function VoiceRecorder({ onSaved, minSeconds = 0, maxSeconds = 90 }) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       let preferredType = '';
 
-      if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        preferredType = 'audio/mp4';
-      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-        preferredType = 'audio/webm';
-      }
+if (MediaRecorder.isTypeSupported('audio/mp4')) {
+  preferredType = 'audio/mp4'; // 优先 iPhone
+} else if (MediaRecorder.isTypeSupported('audio/webm')) {
+  preferredType = 'audio/webm'; // 备用
+}
       const recorder = preferredType ? new MediaRecorder(stream, { mimeType: preferredType }) : new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {
@@ -317,102 +198,31 @@ function VoiceRecorder({ onSaved, minSeconds = 0, maxSeconds = 90 }) {
   };
 
   return (
-    <motion.div 
-      className="recorder"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      {/* 录音控制区 */}
-      <div className="recorder-controls">
-        <motion.button
-          className={`btn ${isRecording ? 'btn-danger' : 'btn-primary'}`}
-          onClick={isRecording ? stopRecording : startRecording}
-          whileTap={{ scale: 0.97 }}
-          transition={{ duration: 0.1 }}
-        >
-          {isRecording ? '停止录音' : '开始录音'}
-        </motion.button>
-        
-        {/* 计时器 */}
-        <motion.span 
-          className="recorder-timer"
-          key={elapsed}
-          animate={{ opacity: isRecording ? [1, 0.7, 1] : 1 }}
-          transition={{ duration: 0.5, repeat: isRecording ? Infinity : 0 }}
-        >
-          {formatSeconds(elapsed)}
-        </motion.span>
-        
-        {/* 录音状态 */}
-        <AnimatePresence>
-          {isRecording && (
-            <motion.div 
-              className="recorder-status"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.2 }}
-            >
-              <span className="recorder-dot" />
-              正在录音
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* 时长提示 */}
-      <div className="recorder-hint">
-        时长限制：{formatSeconds(minSeconds)} - {formatSeconds(maxSeconds)}
-      </div>
-
-      {/* 错误提示 */}
-      <AnimatePresence>
-        {permissionError && (
-          <motion.div 
-            className="recorder-error"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-          >
-            {permissionError}
-          </motion.div>
+    <div className="recorder">
+      <div className="recorder-top">
+        {!isRecording ? (
+          <button className="btn btn-primary" onClick={startRecording}>开始录音</button>
+        ) : (
+          <button className="btn btn-danger" onClick={stopRecording}>停止录音</button>
         )}
-      </AnimatePresence>
-
-      {/* 录音预览 */}
-      <AnimatePresence>
-        {audioUrl && (
-          <motion.div 
-            className="recorder-preview"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <audio controls src={audioUrl} className="audio-player" />
-            <motion.button
-              className="btn btn-secondary btn-full"
-              onClick={saveRecording}
-              whileTap={{ scale: 0.98 }}
-              style={{ marginTop: 12 }}
-            >
-              使用这段录音
-            </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+        <div className="pill">{formatSeconds(elapsed)}</div>
+      </div>
+      <div className="helper-text">时长限制：{formatSeconds(minSeconds)} - {formatSeconds(maxSeconds)}</div>
+      {isRecording ? <div className="recording-dot">● 正在录音</div> : null}
+      {permissionError ? <div className="error-text">{permissionError}</div> : null}
+      {audioUrl ? (
+        <div className="audio-preview">
+          <audio controls src={audioUrl} className="audio-element" />
+          <button className="btn btn-secondary" onClick={saveRecording}>使用这段录音</button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
-// ============================================
-// Builder 组件 - 问卷编辑模式
-// ============================================
-
 function Builder({ survey, setSurvey, submissions, setMode }) {
   const [selectedPageId, setSelectedPageId] = useState(survey.pages[0]?.id || '');
+  const selectedPage = survey.pages.find((p) => p.id === selectedPageId) || survey.pages[0];
 
   useEffect(() => {
     if (!selectedPageId && survey.pages[0]) setSelectedPageId(survey.pages[0].id);
@@ -534,178 +344,98 @@ function Builder({ survey, setSurvey, submissions, setMode }) {
     }));
   };
 
-  const selectedPage = survey.pages.find((p) => p.id === selectedPageId) || survey.pages[0];
-
   return (
-    <motion.div 
-      className="stack"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-    >
-      {/* 基础设置卡片 */}
-      <Card title="基础设置" subtitle="设置访谈标题、欢迎页和结束页。">
+    <div className="stack">
+      <SectionCard title="基础设置" subtitle="设置访谈标题、欢迎页和结束页。">
         <div className="form-grid">
-          <Field label="访谈标题">
-            <input className="field-input" value={survey.title} onChange={(e) => updateSurvey({ title: e.target.value })} />
-          </Field>
-          <Field label="访谈描述">
-            <textarea className="field-input field-textarea" value={survey.description} onChange={(e) => updateSurvey({ description: e.target.value })} />
-          </Field>
-          <Field label="欢迎标题">
-            <input className="field-input" value={survey.welcomeTitle} onChange={(e) => updateSurvey({ welcomeTitle: e.target.value })} />
-          </Field>
-          <Field label="欢迎文字">
-            <textarea className="field-input field-textarea" value={survey.welcomeText} onChange={(e) => updateSurvey({ welcomeText: e.target.value })} />
-          </Field>
-          <Field label="结束标题">
-            <input className="field-input" value={survey.outroTitle} onChange={(e) => updateSurvey({ outroTitle: e.target.value })} />
-          </Field>
-          <Field label="结束文字">
-            <textarea className="field-input field-textarea" value={survey.outroText} onChange={(e) => updateSurvey({ outroText: e.target.value })} />
-          </Field>
+          <Field label="访谈标题"><input value={survey.title} onChange={(e) => updateSurvey({ title: e.target.value })} /></Field>
+          <Field label="访谈描述"><textarea value={survey.description} onChange={(e) => updateSurvey({ description: e.target.value })} rows={3} /></Field>
+          <Field label="欢迎标题"><input value={survey.welcomeTitle} onChange={(e) => updateSurvey({ welcomeTitle: e.target.value })} /></Field>
+          <Field label="欢迎文字"><textarea value={survey.welcomeText} onChange={(e) => updateSurvey({ welcomeText: e.target.value })} rows={3} /></Field>
+          <Field label="结束标题"><input value={survey.outroTitle} onChange={(e) => updateSurvey({ outroTitle: e.target.value })} /></Field>
+          <Field label="结束文字"><textarea value={survey.outroText} onChange={(e) => updateSurvey({ outroText: e.target.value })} rows={3} /></Field>
         </div>
-        <Toggle 
-          label="要求填写姓名" 
-          checked={survey.requireName} 
-          onChange={(checked) => updateSurvey({ requireName: checked })} 
-        />
-      </Card>
+        <label className="switch-row">
+          <span>要求填写姓名</span>
+          <input type="checkbox" checked={survey.requireName} onChange={(e) => updateSurvey({ requireName: e.target.checked })} />
+        </label>
+      </SectionCard>
 
-      {/* 页面管理卡片 */}
-      <Card title="页面管理" subtitle="管理访谈的各个页面和题目。">
-        <motion.div 
-          className="list"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
-        >
+      <SectionCard title="页面管理" subtitle="适配手机后，页面会纵向堆叠，单手也比较容易操作。">
+        <div className="page-list">
           {survey.pages.map((page, index) => (
-            <ListItem
+            <button
               key={page.id}
-              isActive={selectedPage?.id === page.id}
+              className={`page-item ${selectedPage?.id === page.id ? 'page-item-active' : ''}`}
               onClick={() => setSelectedPageId(page.id)}
-              title={page.title || '未命名页面'}
-              description={`${page.questions.length} 个问题`}
-              actions={[
-                { label: '复制', onClick: () => duplicatePage(page.id) },
-                { label: '删除', onClick: () => deletePage(page.id) }
-              ]}
-            />
+            >
+              <div className="page-item-top">
+                <div>
+                  <div className="small-muted">第 {index + 1} 页</div>
+                  <strong>{page.title || '未命名页面'}</strong>
+                </div>
+                <div className="page-actions">
+                  <span onClick={(e) => { e.stopPropagation(); duplicatePage(page.id); }}>复制</span>
+                  <span onClick={(e) => { e.stopPropagation(); deletePage(page.id); }}>删除</span>
+                </div>
+              </div>
+              <div className="small-muted">{page.questions.length} 个问题</div>
+            </button>
           ))}
-        </motion.div>
-        
-        <div className="btn-group">
-          <motion.button 
-            className="btn btn-secondary" 
-            onClick={addPage}
-            whileTap={{ scale: 0.98 }}
-          >
-            新增页面
-          </motion.button>
-          <motion.button 
-            className="btn btn-ghost" 
-            onClick={() => setMode('participant')}
-            whileTap={{ scale: 0.98 }}
-          >
-            预览答题
-          </motion.button>
-          <motion.button 
-            className="btn btn-ghost" 
-            onClick={() => setMode('results')}
-            whileTap={{ scale: 0.98 }}
-          >
-            查看结果
-          </motion.button>
         </div>
-      </Card>
-
-      {/* 当前页面编辑 */}
-      <AnimatePresence mode="wait">
-        {selectedPage && (
-          <motion.div
-            key={selectedPage.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card title={selectedPage.title} subtitle={selectedPage.description}>
-              <div className="form-grid" style={{ marginBottom: 16 }}>
-                <Field label="页面标题">
-                  <input className="field-input" value={selectedPage.title} onChange={(e) => updatePage(selectedPage.id, { title: e.target.value })} />
-                </Field>
-                <Field label="页面说明">
-                  <textarea className="field-input field-textarea" value={selectedPage.description} onChange={(e) => updatePage(selectedPage.id, { description: e.target.value })} />
-                </Field>
-              </div>
-
-              <div className="stack-sm">
-                {selectedPage.questions.map((q, idx) => (
-                  <motion.div 
-                    key={q.id}
-                    className="card card-compact"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                  >
-                    <div className="list-item-content" style={{ marginBottom: 12 }}>
-                      <span className="card-meta">问题 {idx + 1}</span>
-                      <div className="list-item-actions" style={{ marginTop: 8 }}>
-                        <span onClick={() => duplicateQuestion(selectedPage.id, q.id)}>复制</span>
-                        <span onClick={() => deleteQuestion(selectedPage.id, q.id)}>删除</span>
-                      </div>
-                    </div>
-                    <div className="form-grid">
-                      <Field label="问题内容">
-                        <textarea className="field-input field-textarea" value={q.title} onChange={(e) => updateQuestion(selectedPage.id, q.id, { title: e.target.value })} />
-                      </Field>
-                      <Field label="辅助说明">
-                        <textarea className="field-input field-textarea" value={q.helper} onChange={(e) => updateQuestion(selectedPage.id, q.id, { helper: e.target.value })} />
-                      </Field>
-                      <Field label="最短秒数">
-                        <input type="number" className="field-input" min="0" value={q.minSeconds} onChange={(e) => updateQuestion(selectedPage.id, q.id, { minSeconds: Number(e.target.value || 0) })} />
-                      </Field>
-                      <Field label="最长秒数">
-                        <input type="number" className="field-input" min="1" value={q.maxSeconds} onChange={(e) => updateQuestion(selectedPage.id, q.id, { maxSeconds: Number(e.target.value || 1) })} />
-                      </Field>
-                    </div>
-                    <Toggle 
-                      label="允许跳过" 
-                      checked={q.optional} 
-                      onChange={(checked) => updateQuestion(selectedPage.id, q.id, { optional: checked })} 
-                    />
-                  </motion.div>
-                ))}
-              </div>
-
-              <motion.button 
-                className="btn btn-primary btn-full" 
-                onClick={() => addQuestion(selectedPage.id)}
-                whileTap={{ scale: 0.98 }}
-                style={{ marginTop: 16 }}
-              >
-                新增语音问题
-              </motion.button>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 数据统计 */}
-      <Card compact>
-        <div className="stats">
-          <span className="stats-label">已保存结果</span>
-          <span className="stats-value">{submissions.length}</span>
+        <div className="row-buttons">
+          <button className="btn btn-secondary" onClick={addPage}>新增页面</button>
+          <button className="btn btn-secondary" onClick={() => setMode('participant')}>预览答题</button>
+          <button className="btn btn-secondary" onClick={() => setMode('results')}>查看结果</button>
         </div>
-      </Card>
-    </motion.div>
+      </SectionCard>
+
+      {selectedPage ? (
+        <SectionCard title="当前页面编辑" subtitle="所有问题都默认是语音题。">
+          <div className="form-grid">
+            <Field label="页面标题"><input value={selectedPage.title} onChange={(e) => updatePage(selectedPage.id, { title: e.target.value })} /></Field>
+            <Field label="页面说明"><textarea rows={2} value={selectedPage.description} onChange={(e) => updatePage(selectedPage.id, { description: e.target.value })} /></Field>
+          </div>
+
+          <div className="question-list">
+            {selectedPage.questions.map((q, idx) => (
+              <div className="question-card" key={q.id}>
+                <div className="question-head">
+                  <div>
+                    <div className="small-muted">问题 {idx + 1}</div>
+                    <strong>语音回答</strong>
+                  </div>
+                  <div className="page-actions">
+                    <span onClick={() => duplicateQuestion(selectedPage.id, q.id)}>复制</span>
+                    <span onClick={() => deleteQuestion(selectedPage.id, q.id)}>删除</span>
+                  </div>
+                </div>
+                <div className="form-grid">
+                  <Field label="问题内容"><textarea rows={3} value={q.title} onChange={(e) => updateQuestion(selectedPage.id, q.id, { title: e.target.value })} /></Field>
+                  <Field label="辅助说明"><textarea rows={2} value={q.helper} onChange={(e) => updateQuestion(selectedPage.id, q.id, { helper: e.target.value })} /></Field>
+                  <Field label="最短秒数"><input type="number" min="0" value={q.minSeconds} onChange={(e) => updateQuestion(selectedPage.id, q.id, { minSeconds: Number(e.target.value || 0) })} /></Field>
+                  <Field label="最长秒数"><input type="number" min="1" value={q.maxSeconds} onChange={(e) => updateQuestion(selectedPage.id, q.id, { maxSeconds: Number(e.target.value || 1) })} /></Field>
+                </div>
+                <label className="switch-row">
+                  <span>允许跳过</span>
+                  <input type="checkbox" checked={q.optional} onChange={(e) => updateQuestion(selectedPage.id, q.id, { optional: e.target.checked })} />
+                </label>
+              </div>
+            ))}
+          </div>
+          <button className="btn btn-primary full-width" onClick={() => addQuestion(selectedPage.id)}>新增语音问题</button>
+        </SectionCard>
+      ) : null}
+
+      <SectionCard title="当前浏览器中的数据" subtitle="目前仍然是本地存储，适合原型测试。" compact>
+        <div className="stats-row">
+          <div>已保存结果</div>
+          <strong>{submissions.length}</strong>
+        </div>
+      </SectionCard>
+    </div>
   );
 }
-
-// ============================================
-// Participant 组件 - 答题模式
-// ============================================
 
 function Participant({ survey, submissions, setSubmissions, setMode }) {
   const flatQuestions = useMemo(() => {
@@ -753,6 +483,7 @@ function Participant({ survey, submissions, setSubmissions, setMode }) {
     };
   
     try {
+      // 👉 写入 Supabase
       const { error } = await supabase.from('submissions').insert([
         {
           participant_name: submission.participantName,
@@ -767,218 +498,89 @@ function Participant({ survey, submissions, setSubmissions, setMode }) {
         alert('提交失败，请检查网络或配置');
         return;
       }
+  
+      console.log('提交成功');
+  
     } catch (err) {
       console.error(err);
       alert('发生错误');
       return;
     }
   
+    // 👉 保留本地（方便调试）
     setSubmissions((prev) => [submission, ...prev]);
+  
     setSubmittedId(submission.id);
     setStep(totalSteps);
   };
-
   const goBack = () => setStep((s) => Math.max(0, s - 1));
 
-  // 欢迎页
   if (step === -1) {
     return (
-      <AnimatePresence mode="wait">
-        <motion.div
-          key="welcome"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-        >
-          <Card title={survey.welcomeTitle || survey.title} subtitle={survey.welcomeText || survey.description}>
-            {survey.requireName && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <Field label="你的姓名">
-                  <input 
-                    className="field-input" 
-                    value={name} 
-                    onChange={(e) => setName(e.target.value)} 
-                    placeholder="请输入姓名" 
-                  />
-                </Field>
-              </motion.div>
-            )}
-            
-            <motion.div 
-              className="btn-group"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <motion.button
-                className="btn btn-primary"
-                disabled={survey.requireName && !name.trim()}
-                onClick={() => setStep(0)}
-                whileTap={{ scale: 0.98 }}
-              >
-                开始访谈
-              </motion.button>
-              <motion.button
-                className="btn btn-ghost"
-                onClick={() => setMode('builder')}
-                whileTap={{ scale: 0.98 }}
-              >
-                返回编辑器
-              </motion.button>
-            </motion.div>
-          </Card>
-        </motion.div>
-      </AnimatePresence>
+      <SectionCard title={survey.welcomeTitle || survey.title} subtitle={survey.welcomeText || survey.description}>
+        {survey.requireName ? (
+          <Field label="你的姓名">
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="请输入姓名" />
+          </Field>
+        ) : null}
+        <div className="row-buttons">
+          <button className="btn btn-primary" disabled={survey.requireName && !name.trim()} onClick={() => setStep(0)}>开始访谈</button>
+          <button className="btn btn-secondary" onClick={() => setMode('builder')}>返回编辑器</button>
+        </div>
+      </SectionCard>
     );
   }
 
-  // 完成页
   if (step >= totalSteps) {
     const latest = submissions.find((s) => s.id === submittedId);
     return (
-      <AnimatePresence mode="wait">
-        <motion.div
-          key="complete"
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.98 }}
-          transition={{ duration: 0.4 }}
-        >
-          <Card title={survey.outroTitle} subtitle={survey.outroText}>
-            <motion.div 
-              className="info-item"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <div className="info-label">参与者</div>
-              <div className="info-value">{latest?.participantName || '匿名用户'}</div>
-            </motion.div>
-            
-            <motion.div 
-              className="btn-group"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <motion.button
-                className="btn btn-primary"
-                onClick={() => setMode('results')}
-                whileTap={{ scale: 0.98 }}
-              >
-                查看结果
-              </motion.button>
-              <motion.button
-                className="btn btn-secondary"
-                onClick={() => { setAnswers({}); setStep(-1); setSubmittedId(null); setName(''); }}
-                whileTap={{ scale: 0.98 }}
-              >
-                重新开始
-              </motion.button>
-            </motion.div>
-          </Card>
-        </motion.div>
-      </AnimatePresence>
+      <SectionCard title={survey.outroTitle} subtitle={survey.outroText}>
+        <div className="result-box">
+          <div className="small-muted">参与者</div>
+          <strong>{latest?.participantName || '匿名用户'}</strong>
+        </div>
+        <div className="row-buttons">
+          <button className="btn btn-primary" onClick={() => setMode('results')}>查看结果</button>
+          <button className="btn btn-secondary" onClick={() => { setAnswers({}); setStep(-1); setSubmittedId(null); setName(''); }}>重新开始</button>
+        </div>
+      </SectionCard>
     );
   }
 
-  // 答题页
   const currentAnswer = answers[current.question.id];
   const canProceed = current.question.optional || !!currentAnswer;
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={`question-${step}`}
-        className="stack"
-        initial={{ opacity: 0, x: 30 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -30 }}
-        transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-      >
-        {/* 进度指示 */}
-        <Card compact>
-          <div className="progress">
-            <span>{step + 1} / {totalSteps}</span>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${((step + 1) / totalSteps) * 100}%` }} />
-            </div>
+    <div className="stack">
+      <SectionCard title={current.page.title} subtitle={`${step + 1} / ${totalSteps}`} compact>
+        <div className="small-muted">{survey.title}</div>
+      </SectionCard>
+      <SectionCard title={current.question.title} subtitle={current.question.helper || current.page.description}>
+        <VoiceRecorder
+          minSeconds={current.question.minSeconds}
+          maxSeconds={current.question.maxSeconds}
+          onSaved={(recording) => setAnswer(current.question.id, recording)}
+        />
+
+        {currentAnswer ? (
+          <div className="result-box">
+            <div className="small-muted">录音已保存</div>
+            <audio controls src={currentAnswer.dataUrl} className="audio-element" />
+            <div className="small-muted">时长：{formatSeconds(currentAnswer.durationSeconds)}</div>
           </div>
-        </Card>
+        ) : null}
 
-        {/* 问题卡片 */}
-        <Card 
-          title={current.question.title}
-          subtitle={current.question.helper || current.page.description}
-        >
-          {/* 录音组件 */}
-          <VoiceRecorder
-            minSeconds={current.question.minSeconds}
-            maxSeconds={current.question.maxSeconds}
-            onSaved={(recording) => setAnswer(current.question.id, recording)}
-          />
-
-          {/* 已录音预览 */}
-          <AnimatePresence>
-            {currentAnswer && (
-              <motion.div
-                className="recorder-preview"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <audio controls src={currentAnswer.dataUrl} className="audio-player" />
-                <div className="recorder-hint">录音已保存 · 时长：{formatSeconds(currentAnswer.durationSeconds)}</div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* 导航按钮 */}
-          <div className="btn-group" style={{ justifyContent: 'space-between', marginTop: 20 }}>
-            <motion.button
-              className="btn btn-secondary"
-              disabled={step === 0}
-              onClick={goBack}
-              whileTap={{ scale: 0.98 }}
-            >
-              上一题
-            </motion.button>
-            
-            <div style={{ display: 'flex', gap: 8 }}>
-              {current.question.optional && !currentAnswer && (
-                <motion.button
-                  className="btn btn-ghost"
-                  onClick={goNext}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  跳过
-                </motion.button>
-              )}
-              <motion.button
-                className="btn btn-primary"
-                disabled={!canProceed}
-                onClick={goNext}
-                whileTap={{ scale: 0.98 }}
-              >
-                {step === totalSteps - 1 ? '完成提交' : '下一题'}
-              </motion.button>
-            </div>
+        <div className="row-buttons between">
+          <button className="btn btn-secondary" disabled={step === 0} onClick={goBack}>上一题</button>
+          <div className="row-buttons compact-right">
+            {current.question.optional && !currentAnswer ? <button className="btn btn-secondary" onClick={goNext}>跳过</button> : null}
+            <button className="btn btn-primary" disabled={!canProceed} onClick={goNext}>{step === totalSteps - 1 ? '完成提交' : '下一题'}</button>
           </div>
-        </Card>
-      </motion.div>
-    </AnimatePresence>
+        </div>
+      </SectionCard>
+    </div>
   );
 }
-
-// ============================================
-// Results 组件 - 结果查看模式
-// ============================================
 
 function Results({ survey, setMode }) {
   const [remoteSubmissions, setRemoteSubmissions] = useState([]);
@@ -994,6 +596,7 @@ function Results({ survey, setMode }) {
 
     if (error) {
       console.error('读取 submissions 失败:', error);
+      alert('读取结果失败，请检查 Supabase 配置');
       setLoading(false);
       return;
     }
@@ -1018,295 +621,151 @@ function Results({ survey, setMode }) {
     loadSubmissions();
   }, []);
 
-  const selected = remoteSubmissions.find((item) => item.id === selectedId) || remoteSubmissions[0];
+  const selected =
+    remoteSubmissions.find((item) => item.id === selectedId) ||
+    remoteSubmissions[0] ||
+    null;
 
   return (
-    <motion.div 
-      className="stack"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-    >
-      {/* 操作栏 */}
-      <Card compact>
-        <div className="btn-group" style={{ marginTop: 0 }}>
-          <motion.button 
-            className="btn btn-ghost" 
-            onClick={() => setMode('builder')}
-            whileTap={{ scale: 0.98 }}
-          >
+    <div className="stack">
+      <SectionCard title="提交结果" subtitle="这里展示的是 Supabase 里的真实数据。">
+        <div className="row-buttons">
+          <button className="btn btn-secondary" onClick={() => setMode('builder')}>
             返回编辑器
-          </motion.button>
-          <motion.button 
-            className="btn btn-secondary" 
-            onClick={loadSubmissions}
-            whileTap={{ scale: 0.98 }}
-          >
+          </button>
+          <button className="btn btn-secondary" onClick={loadSubmissions}>
             刷新结果
-          </motion.button>
-          <motion.button 
-            className="btn btn-secondary" 
+          </button>
+          <button
+            className="btn btn-secondary"
             onClick={() => downloadJson(`${survey.id}-submissions.json`, remoteSubmissions)}
             disabled={!remoteSubmissions.length}
-            whileTap={{ scale: 0.98 }}
           >
             导出 JSON
-          </motion.button>
+          </button>
         </div>
-      </Card>
+      </SectionCard>
 
-      {/* 提交列表 */}
-      <Card title="提交列表" subtitle={loading ? '正在加载...' : `共 ${remoteSubmissions.length} 条`}>
-        <AnimatePresence mode="wait">
+      <SectionCard
+        title="提交列表"
+        subtitle={loading ? '正在加载...' : `共 ${remoteSubmissions.length} 条`}
+      >
+        <div className="page-list">
           {loading ? (
-            <motion.div 
-              key="loading"
-              className="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="loading-spinner" />
-              正在从 Supabase 读取数据...
-            </motion.div>
+            <div className="empty-box">正在从 Supabase 读取数据...</div>
           ) : remoteSubmissions.length === 0 ? (
-            <motion.div 
-              key="empty"
-              className="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="empty-icon">📭</div>
-              <div className="empty-text">还没有提交结果</div>
-            </motion.div>
+            <div className="empty-box">还没有提交结果。</div>
           ) : (
-            <motion.div 
-              key="list"
-              className="list"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              {remoteSubmissions.map((item, index) => (
-                <ListItem
-                  key={item.id}
-                  isActive={selected?.id === item.id}
-                  onClick={() => setSelectedId(item.id)}
-                  title={item.participantName || '匿名用户'}
-                  description={new Date(item.submittedAt).toLocaleString('zh-CN')}
-                />
-              ))}
-            </motion.div>
+            remoteSubmissions.map((item, index) => (
+              <button
+                key={item.id}
+                className={`page-item ${selected?.id === item.id ? 'page-item-active' : ''}`}
+                onClick={() => setSelectedId(item.id)}
+              >
+                <div className="page-item-top">
+                  <strong>第 {remoteSubmissions.length - index} 份</strong>
+                </div>
+                <div>{item.participantName || '匿名用户'}</div>
+                <div className="small-muted">
+                  {new Date(item.submittedAt).toLocaleString()}
+                </div>
+              </button>
+            ))
           )}
-        </AnimatePresence>
-      </Card>
+        </div>
+      </SectionCard>
 
-      {/* 结果详情 */}
-      <Card title="结果详情" subtitle="每个问题会和录音一起展示。">
-        <AnimatePresence mode="wait">
-          {!selected ? (
-            <motion.div 
-              key="no-select"
-              className="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="empty-text">请选择一条结果查看</div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key={selected.id}
-              className="stack-sm"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* 基本信息 */}
-              <div className="info-grid">
-                <div className="info-item">
-                  <div className="info-label">参与者</div>
-                  <div className="info-value">{selected.participantName || '匿名用户'}</div>
+      <SectionCard title="结果详情" subtitle="每个问题会和录音一起展示。">
+        {!selected ? (
+          <div className="empty-box">请选择一条结果查看。</div>
+        ) : (
+          <div className="stack small-gap">
+            <div className="info-grid">
+              <div className="result-box">
+                <div className="small-muted">参与者</div>
+                <strong>{selected.participantName || '匿名用户'}</strong>
+              </div>
+              <div className="result-box">
+                <div className="small-muted">访谈</div>
+                <strong>{selected.surveyTitle}</strong>
+              </div>
+              <div className="result-box">
+                <div className="small-muted">提交时间</div>
+                <strong>{new Date(selected.submittedAt).toLocaleString()}</strong>
+              </div>
+            </div>
+
+            {(selected.answers || []).map((item, idx) => (
+              <div className="question-card" key={item.questionId || idx}>
+                <div className="small-muted">
+                  问题 {idx + 1} · {item.pageTitle}
                 </div>
-                <div className="info-item">
-                  <div className="info-label">访谈</div>
-                  <div className="info-value">{selected.surveyTitle}</div>
-                </div>
-                <div className="info-item">
-                  <div className="info-label">提交时间</div>
-                  <div className="info-value" style={{ fontSize: 13 }}>
-                    {new Date(selected.submittedAt).toLocaleString('zh-CN')}
-                  </div>
+                <strong>{item.questionTitle}</strong>
+                {item.helper ? <div className="small-muted top-gap">{item.helper}</div> : null}
+                <div className="top-gap">
+                  {item.response?.dataUrl ? (
+                    <>
+                      <audio controls src={item.response.dataUrl} className="audio-element" />
+                      <div className="small-muted">
+                        时长：{formatSeconds(item.response.durationSeconds)}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="small-muted">没有提交录音。</div>
+                  )}
                 </div>
               </div>
-
-              {/* 问题列表 */}
-              {(selected.answers || []).map((item, idx) => (
-                <motion.div
-                  key={item.questionId || idx}
-                  className="card card-compact"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                >
-                  <span className="card-meta">
-                    问题 {idx + 1} · {item.pageTitle}
-                  </span>
-                  <div className="card-title" style={{ fontSize: 18, marginTop: 8 }}>
-                    {item.questionTitle}
-                  </div>
-                  {item.helper && (
-                    <div className="card-subtitle" style={{ fontSize: 13, marginTop: 4 }}>
-                      {item.helper}
-                    </div>
-                  )}
-                  
-                  <div style={{ marginTop: 12 }}>
-                    {item.response?.dataUrl ? (
-                      <>
-                        <audio controls src={item.response.dataUrl} className="audio-player" />
-                        <div className="recorder-hint">
-                          时长：{formatSeconds(item.response.durationSeconds)}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="recorder-hint">没有提交录音</div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </Card>
-    </motion.div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+    </div>
   );
 }
-
-// ============================================
-// App 根组件
-// ============================================
 
 export default function App() {
   const [survey, setSurvey] = usePersistentState('voice-mobile-survey', defaultSurvey);
   const [submissions, setSubmissions] = usePersistentState('voice-mobile-submissions', []);
+  const getInitialMode = () => {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+  
+    if (mode === 'admin') return 'builder';
+    if (mode === 'results') return 'results';
+  
+    return 'participant'; // 默认用户端
+  };
   
   const [mode, setMode] = useState(
     window.location.search.includes('admin') ? 'builder' : 'participant'
   );
 
-  const isAdmin = window.location.search.includes('admin');
-
   return (
     <div className="app-shell">
-      {/* Header */}
-      <header className="header">
-        <div className="header-inner">
-          <div className="header-top">
-            <motion.h1 
-              className="header-title"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
-              {survey.title}
-            </motion.h1>
-            <motion.span 
-              className="header-badge"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1, duration: 0.3 }}
-            >
-              语音访谈
-            </motion.span>
-          </div>
-
-          {/* 管理员 Tab 切换 */}
-          <AnimatePresence>
-            {isAdmin && (
-              <motion.div 
-                className="tabs"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-              >
-                <motion.button
-                  className={`tab ${mode === 'builder' ? 'tab-active' : ''}`}
-                  onClick={() => setMode('builder')}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  编辑器
-                </motion.button>
-                <motion.button
-                  className={`tab ${mode === 'results' ? 'tab-active' : ''}`}
-                  onClick={() => setMode('results')}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  结果页
-                </motion.button>
-                <motion.button
-                  className={`tab ${mode === 'participant' ? 'tab-active' : ''}`}
-                  onClick={() => setMode('participant')}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  答题预览
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+      <header className="hero">
+        <div className="hero-badge">手机浏览器版</div>
+        <h1>语音访谈编辑器</h1>
+       
+        {window.location.search.includes('admin') && (
+    <div className="mode-tabs">
+          <button className={`tab ${mode === 'builder' ? 'tab-active' : ''}`} onClick={() => setMode('builder')}>编辑器</button>
+          <button className={`tab ${mode === 'results' ? 'tab-active' : ''}`} onClick={() => setMode('results')}>结果页</button>
         </div>
+        )}
       </header>
 
-      {/* Main Content */}
-      <main className="main-content">
-        <AnimatePresence mode="wait">
-          {isAdmin ? (
-            mode === 'builder' ? (
-              <motion.div
-                key="builder"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Builder survey={survey} setSurvey={setSurvey} submissions={submissions} setMode={setMode} />
-              </motion.div>
-            ) : mode === 'results' ? (
-              <motion.div
-                key="results"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Results survey={survey} setMode={setMode} />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="participant-preview"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Participant survey={survey} submissions={submissions} setSubmissions={setSubmissions} setMode={setMode} />
-              </motion.div>
-            )
-          ) : (
-            <motion.div
-              key="participant"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Participant survey={survey} submissions={submissions} setSubmissions={setSubmissions} setMode={setMode} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <main className="main-wrap">
+      {window.location.search.includes('admin') ? (
+  mode === 'builder' ? (
+    <Builder survey={survey} setSurvey={setSurvey} submissions={submissions} setMode={setMode} />
+  ) : mode === 'results' ? (
+    <Results survey={survey} setMode={setMode} />
+  ) : (
+    <Builder survey={survey} setSurvey={setSurvey} submissions={submissions} setMode={setMode} />
+  )
+) : (
+  <Participant survey={survey} submissions={submissions} setSubmissions={setSubmissions} setMode={setMode} />
+)}
       </main>
     </div>
   );
