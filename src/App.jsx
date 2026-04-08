@@ -220,7 +220,7 @@ if (MediaRecorder.isTypeSupported('audio/mp4')) {
   );
 }
 
-function Builder({ survey, setSurvey, submissions, setMode }) {
+function Builder({ survey, setSurvey, submissions, setMode, onPublishSurvey, isPublishing }) {
   const [selectedPageId, setSelectedPageId] = useState(survey.pages[0]?.id || '');
   const selectedPage = survey.pages.find((p) => p.id === selectedPageId) || survey.pages[0];
 
@@ -387,6 +387,9 @@ function Builder({ survey, setSurvey, submissions, setMode }) {
           <button className="btn btn-secondary" onClick={addPage}>新增页面</button>
           <button className="btn btn-secondary" onClick={() => setMode('participant')}>预览答题</button>
           <button className="btn btn-secondary" onClick={() => setMode('results')}>查看结果</button>
+          <button className="btn btn-primary" onClick={onPublishSurvey} disabled={isPublishing}>
+            {isPublishing ? '上传中...' : '上传问卷'}
+          </button>
         </div>
       </SectionCard>
 
@@ -726,6 +729,34 @@ function Results({ survey, setMode }) {
 export default function App() {
   const [survey, setSurvey] = usePersistentState('voice-mobile-survey', defaultSurvey);
   const [submissions, setSubmissions] = usePersistentState('voice-mobile-submissions', []);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  useEffect(() => {
+    const loadPublishedSurvey = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('surveys')
+          .select('config')
+          .eq('id', defaultSurvey.id)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('读取已发布问卷失败:', error.message);
+          return;
+        }
+
+        const publishedSurvey = data?.config;
+        if (!publishedSurvey || !Array.isArray(publishedSurvey.pages)) return;
+
+        setSurvey(publishedSurvey);
+      } catch (err) {
+        console.warn('读取已发布问卷异常:', err);
+      }
+    };
+
+    loadPublishedSurvey();
+  }, [setSurvey]);
+
   const getInitialMode = () => {
     const params = new URLSearchParams(window.location.search);
     const mode = params.get('mode');
@@ -739,6 +770,38 @@ export default function App() {
   const [mode, setMode] = useState(
     window.location.search.includes('admin') ? 'builder' : 'participant'
   );
+
+  const publishSurvey = async () => {
+    setIsPublishing(true);
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .upsert(
+          [
+            {
+              id: survey.id || defaultSurvey.id,
+              title: survey.title,
+              config: survey,
+              updated_at: new Date().toISOString(),
+            },
+          ],
+          { onConflict: 'id' }
+        );
+
+      if (error) {
+        console.error('上传问卷失败:', error);
+        alert('上传失败。请先在 Supabase SQL Editor 执行项目里的 supabase/setup.sql 脚本。');
+        return;
+      }
+
+      alert('上传成功，其他人刷新页面后会看到最新题目。');
+    } catch (err) {
+      console.error('上传问卷异常:', err);
+      alert('上传失败，请检查网络和 Supabase 环境变量配置。');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   return (
     <div className="app-shell">
@@ -757,11 +820,25 @@ export default function App() {
       <main className="main-wrap">
       {window.location.search.includes('admin') ? (
   mode === 'builder' ? (
-    <Builder survey={survey} setSurvey={setSurvey} submissions={submissions} setMode={setMode} />
+    <Builder
+      survey={survey}
+      setSurvey={setSurvey}
+      submissions={submissions}
+      setMode={setMode}
+      onPublishSurvey={publishSurvey}
+      isPublishing={isPublishing}
+    />
   ) : mode === 'results' ? (
     <Results survey={survey} setMode={setMode} />
   ) : (
-    <Builder survey={survey} setSurvey={setSurvey} submissions={submissions} setMode={setMode} />
+    <Builder
+      survey={survey}
+      setSurvey={setSurvey}
+      submissions={submissions}
+      setMode={setMode}
+      onPublishSurvey={publishSurvey}
+      isPublishing={isPublishing}
+    />
   )
 ) : (
   <Participant survey={survey} submissions={submissions} setSubmissions={setSubmissions} setMode={setMode} />
